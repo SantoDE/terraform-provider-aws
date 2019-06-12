@@ -64,10 +64,11 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 							},
 						},
 						"unused_account_validity_days": {
-							Type:         schema.TypeInt,
-							Optional:     true,
-							Deprecated:   "Please use attribute `temporary_password_validity_days' at the Password Policy instead. This attribute might be removed in future releases.",
-							ValidateFunc: validation.IntBetween(0, 90),
+							Type:          schema.TypeInt,
+							Optional:      true,
+							Deprecated:    "Please use attribute `temporary_password_validity_days' at the Password Policy instead. This attribute might be removed in future releases.",
+							ValidateFunc:  validation.IntBetween(0, 90),
+							ConflictsWith: []string{"password_policy.0.temporary_password_validity_days"},
 						},
 					},
 				},
@@ -298,6 +299,7 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 							Type:         schema.TypeInt,
 							Optional:     true,
 							ValidateFunc: validation.IntBetween(0, 90),
+							ConflictsWith: []string{"admin_create_user_config.0.unused_account_validity_days"},
 						},
 					},
 				},
@@ -744,6 +746,12 @@ func resourceAwsCognitoUserPoolRead(d *schema.ResourceData, meta interface{}) er
 		}
 	}
 
+	// As of June 2019, the AWS API for cognito disallows update calls to be done with the unused_account_validity_days
+	// parameter beeing set. Therefore, we need to map it to the new correct place
+	/*if resp.UserPool.Policies.PasswordPolicy != nil && resp.UserPool.Policies.PasswordPolicy.TemporaryPasswordValidityDays != nil {
+		resp.UserPool.AdminCreateUserConfig.UnusedAccountValidityDays = resp.UserPool.Policies.PasswordPolicy.TemporaryPasswordValidityDays
+	}*/
+
 	if resp.UserPool.Policies != nil && resp.UserPool.Policies.PasswordPolicy != nil {
 		if err := d.Set("password_policy", flattenCognitoUserPoolPasswordPolicy(resp.UserPool.Policies.PasswordPolicy)); err != nil {
 			return fmt.Errorf("Failed setting password_policy: %s", err)
@@ -873,9 +881,9 @@ func resourceAwsCognitoUserPoolUpdate(d *schema.ResourceData, meta interface{}) 
 	if params.AdminCreateUserConfig != nil && params.AdminCreateUserConfig.UnusedAccountValidityDays != nil {
 		if params.Policies.PasswordPolicy == nil {
 			params.Policies.PasswordPolicy = &cognitoidentityprovider.PasswordPolicyType{}
-			params.Policies.PasswordPolicy.TemporaryPasswordValidityDays = params.AdminCreateUserConfig.UnusedAccountValidityDays
 		}
 
+		params.Policies.PasswordPolicy.TemporaryPasswordValidityDays = params.AdminCreateUserConfig.UnusedAccountValidityDays
 		params.AdminCreateUserConfig.UnusedAccountValidityDays = nil
 
 	}
