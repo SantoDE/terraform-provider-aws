@@ -138,7 +138,8 @@ func TestAccAWSCognitoUserPool_withAdminCreateUserConfiguration(t *testing.T) {
 			{
 				Config: testAccAWSCognitoUserPoolConfig_withAdminCreateUserConfigurationUpdated(name),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("aws_cognito_user_pool.pool", "admin_create_user_config.0.unused_account_validity_days", "7"),
+					// As of the AWS API Cognito Changes, I need to assert that its not getting updated anymore
+					resource.TestCheckResourceAttr("aws_cognito_user_pool.pool", "admin_create_user_config.0.unused_account_validity_days", "6"),
 					resource.TestCheckResourceAttr("aws_cognito_user_pool.pool", "admin_create_user_config.0.allow_admin_create_user_only", "false"),
 					resource.TestCheckResourceAttr("aws_cognito_user_pool.pool", "admin_create_user_config.0.invite_message_template.0.email_message", "Your username is {username} and constant password is {####}. "),
 					resource.TestCheckResourceAttr("aws_cognito_user_pool.pool", "admin_create_user_config.0.invite_message_template.0.email_subject", "Foo{####}BaBaz"),
