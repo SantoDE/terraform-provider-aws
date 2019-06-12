@@ -66,7 +66,7 @@ func resourceAwsCognitoUserPool() *schema.Resource {
 						"unused_account_validity_days": {
 							Type:         schema.TypeInt,
 							Optional:     true,
-							Default:      7,
+							Deprecated:   "Please use attribute `temporary_password_validity_days' at the Password Policy instead. This attribute might be removed in future releases.",
 							ValidateFunc: validation.IntBetween(0, 90),
 						},
 					},
@@ -517,15 +517,6 @@ func resourceAwsCognitoUserPoolCreate(d *schema.ResourceData, meta interface{}) 
 		PoolName: aws.String(d.Get("name").(string)),
 	}
 
-	if v, ok := d.GetOk("admin_create_user_config"); ok {
-		configs := v.([]interface{})
-		config, ok := configs[0].(map[string]interface{})
-
-		if ok && config != nil {
-			params.AdminCreateUserConfig = expandCognitoUserPoolAdminCreateUserConfig(config)
-		}
-	}
-
 	if v, ok := d.GetOk("alias_attributes"); ok {
 		params.AliasAttributes = expandStringList(v.(*schema.Set).List())
 	}
@@ -875,6 +866,18 @@ func resourceAwsCognitoUserPoolUpdate(d *schema.ResourceData, meta interface{}) 
 			policies.PasswordPolicy = expandCognitoUserPoolPasswordPolicy(config)
 			params.Policies = policies
 		}
+	}
+
+	// As of June 2019, the AWS API for cognito disallows update calls to be done with the unused_account_validity_days
+	// parameter beeing set. Therefore, we need to map it to the new correct place
+	if params.AdminCreateUserConfig != nil && params.AdminCreateUserConfig.UnusedAccountValidityDays != nil {
+		if params.Policies.PasswordPolicy == nil {
+			params.Policies.PasswordPolicy = &cognitoidentityprovider.PasswordPolicyType{}
+			params.Policies.PasswordPolicy.TemporaryPasswordValidityDays = params.AdminCreateUserConfig.UnusedAccountValidityDays
+		}
+
+		params.AdminCreateUserConfig.UnusedAccountValidityDays = nil
+
 	}
 
 	if v, ok := d.GetOk("sms_authentication_message"); ok {
